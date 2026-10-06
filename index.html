@@ -139,7 +139,7 @@ tr.warn td { background: var(--warn-soft); }
   <section id="view-accel" role="tabpanel" aria-labelledby="tab-accel" style="display:grid;gap:18px">
     <div class="panel">
       <h2>入力（10地点）</h2>
-      <p class="note">キロ程は m で入力（「10050」または「10k050」）。速度は 0.1 km/h 単位の整数で入力（例：325 → 32.5 km/h）。空欄の行は飛ばして計算します。基準値を超えた区間は、始まりの地点番号に「!」が付きます。押すと下の詳細へ移動します。</p>
+      <p class="note">キロ程は m で入力（「10050」「10,050」「10k050」のどれでも可）。速度は 0.1 km/h 単位の整数で入力（例：325 → 32.5 km/h）。空欄の行は飛ばして計算します。基準値を超えた区間は、始まりの地点番号に「!」が付きます。押すと下の詳細へ移動します。</p>
       <div class="scroll">
         <table class="inputs">
           <thead><tr><th>地点</th><th>キロ程 [m]</th><th>速度 [0.1 km/h]</th></tr></thead>
@@ -151,7 +151,7 @@ tr.warn td { background: var(--warn-soft); }
 
     <div class="panel">
       <h2>基準値</h2>
-      <p class="note">加速の区間は「加速度基準値以上」、減速の区間は「減速度基準値以下」になったら注意を出します。空欄ならチェックしません。減速度はマイナスで入力（プラスで入れてもマイナスとして扱います）。</p>
+      <p class="note">加速の区間は「加速度基準値以上」、減速の区間は「減速度基準値以下」になったら注意を出します。空欄ならチェックしません。減速度はマイナスで入力（プラスで入れてもマイナスとして扱います）。加速度はプラスとして扱います。</p>
       <div class="th-grid">
         <div class="field"><label for="th-acc">加速度基準値 [G]</label><input type="text" id="th-acc" inputmode="decimal" autocomplete="off" placeholder="なし"></div>
         <div class="field"><label for="th-dec">減速度基準値 [G]</label><input type="text" id="th-dec" inputmode="decimal" autocomplete="off" value="-0.08" placeholder="なし"></div>
@@ -272,9 +272,9 @@ tr.warn td { background: var(--warn-soft); }
     return Number(t) * G0;
   }
 
-  // "10050" / "10050.5" / "10k050" / "10K050m" → m
+  // "10050" / "10,050" / "10050.5" / "10k050" / "10K050m" → m
   function parseKm(s) {
-    s = s.trim().replace(/[，,]/g, ".").replace(/[０-９．]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xFEE0));
+    s = s.trim().replace(/[，,\s]/g, "").replace(/[０-９．]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xFEE0));
     if (s === "") return null;
     const m = s.match(/^(\d+)\s*[kK]\s*(\d{1,3}(?:\.\d+)?)\s*m?$/);
     if (m) return Number(m[1]) * 1000 + Number(m[2]);
@@ -300,18 +300,23 @@ tr.warn td { background: var(--warn-soft); }
       if (k === null || v === null) { errs.push(`地点${i + 1}はキロ程と速度の両方を入れてください`); continue; }
       pts.push({ no: i + 1, km: k, v: v });
     }
+    if (pts.length && pts[0].no !== 1 && $("km-0").value.trim() === "") errs.push("地点1のキロ程が空です（地点1を飛ばして計算しています）");
     const out = $("out-body"); out.innerHTML = "";
     const secs = [];
     for (let i = 1; i < pts.length; i++) {
       const p = pts[i - 1], q = pts[i];
       const d = Math.abs(q.km - p.km);
       if (d === 0) { errs.push(`地点${p.no}と地点${q.no}のキロ程が同じなので計算できません`); continue; }
+      const dir = Math.sign(q.km - p.km);
+      if (secs.length && dir !== Math.sign(secs[0].q.km - secs[0].p.km)) errs.push(`地点${p.no}→${q.no}でキロ程の増減の向きが逆になっています`);
+      if (p.v === 0 && q.v === 0) errs.push(`地点${p.no}→${q.no}は速度が両方0なので、走行できません`);
       const v1 = p.v / 3.6, v2 = q.v / 3.6;
       const a = (v2 * v2 - v1 * v1) / (2 * d);
       const t = v1 + v2 > 0 ? (2 * d) / (v1 + v2) : null;
       secs.push({ p, q, d, a, t });
     }
-    const thAcc = parseTh("th-acc");
+    let thAcc = parseTh("th-acc");
+    if (thAcc !== null && !Number.isNaN(thAcc)) thAcc = Math.abs(thAcc);
     let thDec = parseTh("th-dec");
     if (Number.isNaN(thAcc) || Number.isNaN(thDec)) errs.push("基準値の数字が読めません");
     if (thDec !== null && !Number.isNaN(thDec)) thDec = -Math.abs(thDec);
@@ -361,11 +366,14 @@ tr.warn td { background: var(--warn-soft); }
     if (secs.length) {
       const maxA = secs.reduce((m, s) => (s.a > m.a ? s : m));
       const minA = secs.reduce((m, s) => (s.a < m.a ? s : m));
+      const stat = (sec, ok, name, cls) => ok
+        ? `<div class="stat ${cls}"><b>${fmt(sec.a / G0, 3)}</b><span>${name} G（区間${sec.p.no}→${sec.q.no}）</span></div>`
+        : `<div class="stat ${cls}"><b>—</b><span>${name} G（該当区間なし）</span></div>`;
       const dist = secs.reduce((x, s) => x + s.d, 0);
       const tt = secs.every((s) => s.t !== null) ? secs.reduce((x, s) => x + s.t, 0) : null;
       sum.innerHTML = `
-        <div class="stat acc"><b>${fmt(maxA.a / G0, 3)}</b><span>最大加速度 G（区間${maxA.p.no}→${maxA.q.no}）</span></div>
-        <div class="stat dec"><b>${fmt(minA.a / G0, 3)}</b><span>最大減速度 G（区間${minA.p.no}→${minA.q.no}）</span></div>
+        ${stat(maxA, maxA.a >= 0.0005, "最大加速度", "acc")}
+        ${stat(minA, minA.a <= -0.0005, "最大減速度", "dec")}
         <div class="stat"><b>${fmt(dist, 0)} m</b><span>合計距離</span></div>
         <div class="stat"><b>${tt === null ? "—" : fmt(tt, 1) + " s"}</b><span>合計所要時間</span></div>`;
     } else sum.innerHTML = "";
