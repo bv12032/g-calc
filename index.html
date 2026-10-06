@@ -12,174 +12,204 @@ img { max-width: 100%; }
 <title>加速度計算・2進数電卓</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap">
 <style>
-/* Layout: one narrow work column; tabs on top; each tool = input panel, then results (summary before detail) */
+/* Layout: drafting sheet — run curve on graph paper is the hero; inputs and per-section results below, divided by rules, not cards */
 :root {
-  --bg: #eef1f4;
-  --surface: #ffffff;
-  --fg: #16202b;
-  --muted: #5a6876;
-  --line: #d3dae1;
-  --accent: #1f5fa8;
-  --accent-soft: #e3ecf7;
-  --accel: #1f5fa8;
-  --decel: #b4472b;
-  --even: #6b7684;
+  --paper: #eaf1ec;      /* graph paper */
+  --sheet: #f7faf8;      /* page */
+  --ink: #1c2b33;        /* drafting ink, blue-slate */
+  --ink-soft: #5b6c72;
+  --grid: #cfe0d6;       /* graph-paper minor line */
+  --grid-major: #a9c7b6; /* graph-paper major line */
+  --rule: #d5dfda;
+  --field: #ffffff;
+  --accel: #2148a8;      /* acceleration: blue ink */
+  --decel: #c4302a;      /* deceleration: red ink */
+  --even: #7a8a86;
+  --warn: #9a5d00;
+  --warn-fill: #ffe9b8;
+  --warn-line: #e3a21a;
   --error: #b42318;
-  --warn: #a35a00;
-  --warn-soft: #fdf1dc;
+  --focus: #2148a8;
   --font-ui: "BIZ UDPGothic", "Hiragino Sans", "Yu Gothic", sans-serif;
-  --font-num: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --font-num: "BIZ UDPGothic", "Hiragino Sans", sans-serif;
+  --step-0: 15px; --step-1: 17px; --step-2: 21px;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #10161c; --surface: #18212a; --fg: #e4eaf0; --muted: #94a3b2; --line: #2b3742;
-    --accent: #6ea8ea; --accent-soft: #1d2d40; --accel: #6ea8ea; --decel: #ec8a6c; --even: #9aa6b3; --error: #f2877c; --warn: #f0b44c; --warn-soft: #3a2e17;
+    --paper: #14211d; --sheet: #0f1715; --ink: #e2ece7; --ink-soft: #9db0a9; --grid: #1e302a; --grid-major: #2f4a40;
+    --rule: #263731; --field: #182622; --accel: #86a8ff; --decel: #ff8378; --even: #95a5a0;
+    --warn: #f3bb4a; --warn-fill: #3b2e12; --warn-line: #c98a12; --error: #ff8f84; --focus: #86a8ff;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #10161c; --surface: #18212a; --fg: #e4eaf0; --muted: #94a3b2; --line: #2b3742;
-  --accent: #6ea8ea; --accent-soft: #1d2d40; --accel: #6ea8ea; --decel: #ec8a6c; --even: #9aa6b3; --error: #f2877c; --warn: #f0b44c; --warn-soft: #3a2e17;
+  --paper: #14211d; --sheet: #0f1715; --ink: #e2ece7; --ink-soft: #9db0a9; --grid: #1e302a; --grid-major: #2f4a40;
+  --rule: #263731; --field: #182622; --accel: #86a8ff; --decel: #ff8378; --even: #95a5a0;
+  --warn: #f3bb4a; --warn-fill: #3b2e12; --warn-line: #c98a12; --error: #ff8f84; --focus: #86a8ff;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
-body { background: var(--bg); color: var(--fg); font-family: var(--font-ui); font-size: 15px; line-height: 1.6; }
-.wrap { max-width: 920px; margin: 0 auto; padding-inline: 16px; padding-block: 20px 48px; display: grid; gap: 18px; }
-h1 { font-size: 1.35rem; margin: 0; text-wrap: balance; }
-h2 { font-size: 1rem; margin: 0; }
-.sub { color: var(--muted); font-size: .85rem; margin: 0; }
-.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
-.tab { font: inherit; font-weight: 700; padding: 10px 16px; border: 0; background: none; color: var(--muted); cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -1px; }
-.tab[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); }
-.tab:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px; display: grid; gap: 14px; min-width: 0; }
-.scroll { overflow-x: auto; }
-table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
-th, td { padding: 6px 8px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
-th { font-size: .78rem; color: var(--muted); font-weight: 700; letter-spacing: .02em; }
-th:first-child, td:first-child { text-align: center; }
-td.num { font-family: var(--font-num); }
-input[type="text"] { font-family: var(--font-num); font-size: 15px; width: 100%; min-width: 0; padding: 7px 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--fg); text-align: right; }
-input.bad { border-color: var(--error); }
-.inputs td { padding: 4px 6px; }
-.inputs input { width: 100%; }
-.inputs th:first-child, .inputs td:first-child { width: 3em; }
-.btn { font: inherit; font-size: .88rem; padding: 7px 14px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); cursor: pointer; }
-.btn.primary { background: var(--accent); color: var(--surface); border-color: var(--accent); font-weight: 700; }
-.pill { display: inline-block; font-size: .75rem; font-weight: 700; padding: 1px 8px; border-radius: 99px; border: 1px solid currentColor; }
-.pill.acc { color: var(--accel); } .pill.dec { color: var(--decel); } .pill.even { color: var(--even); }
-.summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
-.stat { border-left: 3px solid var(--line); padding: 2px 10px; }
-.stat b { display: block; font-family: var(--font-num); font-size: 1.15rem; }
-.stat span { font-size: .78rem; color: var(--muted); }
-.stat.acc { border-color: var(--accel); } .stat.dec { border-color: var(--decel); }
-.note { font-size: .8rem; color: var(--muted); margin: 0; }
-.err { color: var(--error); font-size: .85rem; margin: 0; }
-svg text { fill: var(--muted); font-family: var(--font-num); font-size: 13px; }
-.th-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
-.th-grid input, .th-grid select { width: 100%; }
-.mark { font: inherit; font-family: var(--font-num); font-weight: 700; display: inline-flex; align-items: center; gap: 3px; padding: 1px 6px; border-radius: 99px; border: 1px solid var(--warn); background: var(--warn-soft); color: var(--warn); cursor: pointer; }
-.mark span { display: inline-grid; place-items: center; width: 1.1em; height: 1.1em; border-radius: 50%; background: var(--warn); color: var(--surface); font-size: .7rem; }
-@keyframes flash { from { outline: 3px solid var(--warn); } to { outline: 3px solid transparent; } }
-tr.flash { animation: flash 1.6s ease-out; outline-offset: -3px; }
-@media (prefers-reduced-motion: reduce) { tr.flash { animation: none; outline: 3px solid var(--warn); } }
-.pill.warn { color: var(--warn); background: var(--warn-soft); margin-left: 4px; }
-tr.warn td { background: var(--warn-soft); }
-.stat.warn { border-color: var(--warn); }
-.alert { background: var(--warn-soft); color: var(--warn); border: 1px solid var(--warn); border-radius: 6px; padding: 8px 12px; font-weight: 700; font-size: .88rem; margin: 0; }
-@media (max-width: 640px) {
-  .out-table thead { display: none; }
-  .out-table, .out-table tbody { display: block; }
-  .out-table tr { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 14px; padding: 10px 8px; border-bottom: 1px solid var(--line); }
-  .out-table tr.warn { background: var(--warn-soft); }
-  .out-table td { border: 0; padding: 2px 0; display: flex; justify-content: space-between; align-items: baseline; gap: 6px; white-space: normal; background: none !important; }
-  .out-table td::before { content: attr(data-label); color: var(--muted); font-size: .74rem; font-family: var(--font-ui); }
-  .out-table td.head { grid-column: 1 / -1; justify-content: flex-start; font-weight: 700; }
-  .out-table td.head::before { content: none; }
-  .out-table td.empty { grid-column: 1 / -1; justify-content: center; }
-  .out-table td.empty::before { content: none; }
+body { background: var(--sheet); color: var(--ink); font-family: var(--font-ui); font-size: var(--step-0); line-height: 1.65; }
+.wrap { max-width: 760px; margin: 0 auto; padding-inline: 16px; padding-block: 16px 56px; display: grid; gap: 22px; }
+h1, h2 { margin: 0; font-weight: 700; text-wrap: balance; }
+h1 { font-size: var(--step-2); letter-spacing: .02em; }
+h2 { font-size: var(--step-1); }
+p { margin: 0; }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.num, .sec, .summary, input[type="text"], .res-row code, .bits { font-variant-numeric: tabular-nums; }
+
+/* header + tabs */
+.top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; }
+.tabs { display: inline-flex; border: 1.5px solid var(--ink); border-radius: 999px; padding: 2px; }
+.tab { border: 0; background: none; padding: 5px 14px; border-radius: 999px; cursor: pointer; font-weight: 700; font-size: 14px; color: var(--ink-soft); }
+.tab[aria-selected="true"] { background: var(--ink); color: var(--sheet); }
+
+.view { display: grid; gap: 26px; }
+.block { display: grid; gap: 12px; padding-top: 18px; border-top: 1.5px solid var(--ink); min-width: 0; }
+.note { color: var(--ink-soft); font-size: 13px; }
+.err { color: var(--error); font-size: 14px; font-weight: 700; }
+
+/* hero: run curve on graph paper */
+.paper { margin: 0; background: var(--paper); border: 1.5px solid var(--grid-major); border-radius: 4px; padding: 10px 8px 8px; display: grid; gap: 6px; }
+.paper svg { display: block; width: 100%; height: auto; }
+.paper svg text { fill: var(--ink-soft); font-family: var(--font-num); font-size: 12px; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--ink-soft); padding-inline: 6px; }
+.legend i { display: inline-block; width: 18px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 5px; }
+
+.summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px 18px; margin: 0; }
+.summary div { display: grid; gap: 0; }
+.summary dt { font-size: 12px; color: var(--ink-soft); }
+.summary dd { margin: 0; font-size: 20px; font-weight: 700; }
+.summary dd small { font-size: 12px; font-weight: 400; color: var(--ink-soft); margin-left: 4px; }
+.summary .acc dd { color: var(--accel); } .summary .dec dd { color: var(--decel); }
+
+.alert { background: var(--warn-fill); color: var(--warn); border-left: 4px solid var(--warn-line); padding: 8px 12px; font-weight: 700; font-size: 14px; }
+
+/* inputs */
+.inputs { width: 100%; border-collapse: collapse; }
+.inputs th { font-size: 12px; font-weight: 400; color: var(--ink-soft); text-align: left; padding: 0 6px 4px; }
+.inputs td { padding: 3px 6px; border-top: 1px solid var(--rule); }
+.inputs td:first-child { width: 3.4em; text-align: center; font-family: var(--font-num); color: var(--ink-soft); }
+.inputs th:first-child { text-align: center; }
+input[type="text"] { width: 100%; min-width: 0; padding: 7px 10px; border: 1px solid var(--rule); border-radius: 3px; background: var(--field); font-family: var(--font-num); font-size: 16px; text-align: right; }
+input[type="text"]:focus { border-color: var(--focus); }
+input.bad { border-color: var(--error); box-shadow: inset 0 0 0 1px var(--error); }
+.mark { display: inline-flex; align-items: center; gap: 3px; padding: 1px 7px; border: 1.5px solid var(--warn-line); border-radius: 999px; background: var(--warn-fill); color: var(--warn); font-family: var(--font-num); font-weight: 700; cursor: pointer; }
+.mark span { font-weight: 700; }
+
+.th-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.field label { display: block; font-size: 13px; color: var(--ink-soft); margin-bottom: 4px; }
+
+/* sections */
+.secs { list-style: none; margin: 0; padding: 0; }
+.sec { display: grid; grid-template-columns: 4.6em minmax(0, 1fr) auto; grid-template-areas: "name g vals"; gap: 6px 14px; align-items: center; padding: 10px 6px; border-top: 1px solid var(--rule); }
+.sec:last-child { border-bottom: 1px solid var(--rule); }
+.sec.warn { background: var(--warn-fill); }
+.sec-name { grid-area: name; font-family: var(--font-num); font-weight: 700; }
+.sec-name small { display: block; font-family: var(--font-ui); font-weight: 400; font-size: 12px; }
+.sec-name .acc { color: var(--accel); } .sec-name .dec { color: var(--decel); } .sec-name .even { color: var(--even); }
+.sec-name .flag { color: var(--warn); font-weight: 700; display: block; }
+.sec-g { grid-area: g; display: grid; gap: 4px; min-width: 0; }
+.sec-g b { font-family: var(--font-num); font-size: 18px; }
+.sec-g b small { font-size: 12px; font-weight: 400; color: var(--ink-soft); margin-left: 3px; }
+.gbar { position: relative; height: 8px; background: var(--paper); border-radius: 2px; }
+.gbar .zero { position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: var(--ink-soft); }
+.gbar .fill { position: absolute; top: 0; bottom: 0; border-radius: 2px; }
+.gbar .tick { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--warn-line); }
+.sec-vals { grid-area: vals; display: grid; grid-template-columns: repeat(3, auto); gap: 0 16px; margin: 0; text-align: right; }
+.sec-vals dt { font-size: 11px; color: var(--ink-soft); white-space: nowrap; }
+.sec-vals dd { margin: 0; font-family: var(--font-num); font-size: 14px; }
+.empty { color: var(--ink-soft); padding: 14px 6px; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+@keyframes flash { from { box-shadow: inset 0 0 0 3px var(--warn-line); } to { box-shadow: inset 0 0 0 3px transparent; } }
+.sec.flash { animation: flash 1.6s ease-out; }
+@media (max-width: 560px) {
+  .sec { grid-template-columns: 4.6em minmax(0, 1fr); grid-template-areas: "name g" "vals vals"; }
+  .sec-vals { grid-template-columns: repeat(3, 1fr); text-align: left; padding-left: calc(4.6em + 14px); }
 }
-.formula { font-family: var(--font-num); font-size: .82rem; background: var(--bg); border-radius: 6px; padding: 8px 10px; overflow-x: auto; }
+.formula { font-size: 12px; color: var(--ink-soft); line-height: 1.8; }
 
 /* binary calculator */
-.calc-grid { display: grid; gap: 12px; }
-.field label { display: block; font-size: .8rem; font-weight: 700; color: var(--muted); margin-bottom: 4px; }
-.field .hint { font-family: var(--font-num); font-size: .8rem; color: var(--muted); min-height: 1.3em; }
-.ops { display: grid; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); gap: 6px; }
-.op { font-family: var(--font-num); font-size: .95rem; padding: 9px 4px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); cursor: pointer; }
-.op small { display: block; font-family: var(--font-ui); font-size: .68rem; color: var(--muted); }
-.op[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
-.result { display: grid; gap: 6px; }
-.res-row { display: grid; grid-template-columns: 5.5em 1fr auto; gap: 8px; align-items: center; border-bottom: 1px solid var(--line); padding-block: 6px; }
-.res-row span:first-child { font-size: .8rem; color: var(--muted); font-weight: 700; }
-.res-row code { font-family: var(--font-num); font-size: 1rem; overflow-wrap: anywhere; min-width: 0; }
-.res-row.main code { font-size: 1.25rem; font-weight: 600; color: var(--accent); }
-.copy { font-size: .75rem; padding: 3px 8px; }
-.bits { display: flex; flex-wrap: wrap; gap: 6px; font-family: var(--font-num); }
-.bits span { padding: 2px 6px; background: var(--bg); border-radius: 4px; }
-.conv { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+.bin-in { display: grid; gap: 12px; }
+.hint { font-family: var(--font-num); font-size: 13px; color: var(--ink-soft); min-height: 1.4em; margin-top: 2px; }
+.ops { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; border: 1.5px solid var(--ink); border-radius: 4px; overflow: hidden; }
+.op { border: 0; border-right: 1px solid var(--rule); border-bottom: 1px solid var(--rule); background: var(--field); padding: 8px 2px; cursor: pointer; font-family: var(--font-num); font-weight: 700; font-size: 15px; line-height: 1.3; }
+.op:nth-child(5n) { border-right: 0; } .op:nth-child(n+6) { border-bottom: 0; }
+.op small { display: block; font-family: var(--font-ui); font-weight: 400; font-size: 11px; color: var(--ink-soft); }
+.op[aria-pressed="true"] { background: var(--ink); color: var(--sheet); }
+.op[aria-pressed="true"] small { color: var(--sheet); }
+select { padding: 6px 10px; border: 1px solid var(--rule); border-radius: 3px; background: var(--field); }
+.result { display: grid; }
+.res-row { display: grid; grid-template-columns: 6.5em minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 7px 0; border-top: 1px solid var(--rule); }
+.res-row:last-of-type { border-bottom: 1px solid var(--rule); }
+.res-row span { font-size: 13px; color: var(--ink-soft); }
+.res-row code { font-family: var(--font-num); font-size: 16px; overflow-wrap: anywhere; }
+.res-row.main code { font-size: 22px; font-weight: 700; color: var(--accel); }
+.copy { border: 1px solid var(--rule); background: var(--field); border-radius: 3px; padding: 2px 8px; font-size: 12px; cursor: pointer; }
+.bits { display: flex; flex-wrap: wrap; gap: 6px; font-family: var(--font-num); margin-top: 10px; }
+.bits span { padding: 2px 7px; background: var(--paper); border: 1px solid var(--grid-major); border-radius: 3px; }
+.conv { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+@media (prefers-reduced-motion: reduce) { .sec.flash { animation: none; box-shadow: inset 0 0 0 3px var(--warn-line); } }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <header>
-    <h1>加速度計算・2進数電卓</h1>
-    <p class="sub">キロ程と速度から区間ごとの加速度を出す計算と、2進数の電卓</p>
+  <header class="top">
+    <h1>加速度計算</h1>
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" id="tab-accel" aria-controls="view-accel" aria-selected="true">加速度</button>
+      <button class="tab" role="tab" id="tab-bin" aria-controls="view-bin" aria-selected="false">2進数電卓</button>
+    </div>
   </header>
 
-  <div class="tabs" role="tablist">
-    <button class="tab" role="tab" id="tab-accel" aria-controls="view-accel" aria-selected="true">加速度計算</button>
-    <button class="tab" role="tab" id="tab-bin" aria-controls="view-bin" aria-selected="false">2進数電卓</button>
-  </div>
-
   <!-- ========== 加速度計算 ========== -->
-  <section id="view-accel" role="tabpanel" aria-labelledby="tab-accel" style="display:grid;gap:18px">
-    <div class="panel">
-      <h2>入力（10地点）</h2>
-      <p class="note">キロ程は m で入力（「10050」「10,050」「10k050」のどれでも可）。速度は 0.1 km/h 単位の整数で入力（例：325 → 32.5 km/h）。空欄の行は飛ばして計算します。基準値を超えた区間は、始まりの地点番号に「!」が付きます。押すと下の詳細へ移動します。</p>
-      <div class="scroll">
-        <table class="inputs">
-          <thead><tr><th>地点</th><th>キロ程 [m]</th><th>速度 [0.1 km/h]</th></tr></thead>
-          <tbody id="in-body"></tbody>
-        </table>
-      </div>
-      <p class="err" id="accel-err" hidden></p>
-    </div>
+  <div id="view-accel" class="view" role="tabpanel" aria-labelledby="tab-accel">
+    <figure class="paper">
+      <svg id="chart" viewBox="0 0 640 260" role="img" aria-label="キロ程と速度のグラフ（運転曲線）"></svg>
+      <figcaption class="legend">
+        <span><i style="background:var(--accel)"></i>加速</span>
+        <span><i style="background:var(--decel)"></i>減速</span>
+        <span><i style="background:var(--even)"></i>等速</span>
+        <span><i style="background:var(--warn-line);height:7px"></i>基準超え</span>
+        <span>横軸：キロ程 [m]</span>
+      </figcaption>
+    </figure>
+    <dl class="summary" id="summary"></dl>
+    <p class="alert" id="warn-banner" hidden></p>
 
-    <div class="panel">
+    <section class="block">
+      <h2>入力</h2>
+      <p class="note">キロ程は m（「10050」「10,050」「10k050」のどれでも可）、速度は 0.1 km/h 単位の整数（325 → 32.5 km/h）。空欄の行は飛ばします。基準値を超えた区間は始まりの地点に「!」が付き、押すと結果へ移動します。</p>
+      <table class="inputs">
+        <thead><tr><th>地点</th><th>キロ程 [m]</th><th>速度 [0.1 km/h]</th></tr></thead>
+        <tbody id="in-body"></tbody>
+      </table>
+      <p class="err" id="accel-err" hidden></p>
+    </section>
+
+    <section class="block">
       <h2>基準値</h2>
-      <p class="note">加速の区間は「加速度基準値以上」、減速の区間は「減速度基準値以下」になったら注意を出します。空欄ならチェックしません。減速度はマイナスで入力（プラスで入れてもマイナスとして扱います）。加速度はプラスとして扱います。</p>
       <div class="th-grid">
         <div class="field"><label for="th-acc">加速度基準値 [G]</label><input type="text" id="th-acc" inputmode="decimal" autocomplete="off" placeholder="なし"></div>
         <div class="field"><label for="th-dec">減速度基準値 [G]</label><input type="text" id="th-dec" inputmode="decimal" autocomplete="off" value="-0.08" placeholder="なし"></div>
       </div>
-    </div>
+      <p class="note">加速は基準値以上、減速は基準値以下で注意を出します。空欄ならチェックしません。減速度はマイナス、加速度はプラスとして扱います。</p>
+    </section>
 
-    <div class="panel">
-      <h2>結果</h2>
-      <p class="alert" id="warn-banner" hidden></p>
-      <div class="summary" id="summary"></div>
-      <div>
-        <svg id="chart" viewBox="0 0 640 230" width="100%" role="img" aria-label="キロ程と速度のグラフ"></svg>
-      </div>
-      <div class="scroll">
-        <table class="out-table">
-          <thead><tr><th>区間</th><th>距離 [m]</th><th>速度変化 [km/h]</th><th>加速度 [G]</th><th>所要時間 [s]</th><th>状態</th></tr></thead>
-          <tbody id="out-body"></tbody>
-        </table>
-      </div>
-      <div class="formula">a = (v₂² − v₁²) ÷ (2 × 距離)　　所要時間 t = 2 × 距離 ÷ (v₁ + v₂)<br>※ 区間の中は加速度が一定と仮定。速度は m/s に直して計算（km/h ÷ 3.6）。G = a ÷ 9.80665（1G = 9.80665 m/s²）</div>
-    </div>
-  </section>
+    <section class="block">
+      <h2>区間ごとの結果</h2>
+      <ol class="secs" id="sec-list"></ol>
+      <p class="formula">a = (v₂² − v₁²) ÷ (2 × 距離)、G = a ÷ 9.80665、所要時間 = 2 × 距離 ÷ (v₁ + v₂)。区間の中は加速度が一定と仮定し、速度は m/s に直して計算しています。</p>
+    </section>
+  </div>
 
   <!-- ========== 2進数電卓 ========== -->
-  <section id="view-bin" role="tabpanel" aria-labelledby="tab-bin" hidden style="display:grid;gap:18px">
-    <div class="panel">
+  <div id="view-bin" class="view" role="tabpanel" aria-labelledby="tab-bin" hidden>
+    <section class="block">
       <h2>計算</h2>
-      <div class="calc-grid">
+      <div class="bin-in">
         <div class="field">
           <label for="bin-a">A（2進数）</label>
           <input type="text" id="bin-a" inputmode="numeric" autocomplete="off" value="1011">
@@ -193,24 +223,24 @@ tr.warn td { background: var(--warn-soft); }
         </div>
         <div class="field" id="field-w" hidden>
           <label for="bin-w">ビット幅（NOT用）</label>
-          <select id="bin-w" class="btn"><option>4</option><option selected>8</option><option>16</option><option>32</option></select>
+          <select id="bin-w"><option>4</option><option selected>8</option><option>16</option><option>32</option></select>
         </div>
       </div>
       <p class="err" id="bin-err" hidden></p>
       <div class="result" id="bin-result"></div>
-    </div>
+    </section>
 
-    <div class="panel">
+    <section class="block">
       <h2>進数の変換</h2>
-      <p class="note">どれか1つに入力すると、ほかの欄が自動で変わります。</p>
+      <p class="note">どれか1つに入力すると、ほかの欄が変わります。</p>
       <div class="conv">
         <div class="field"><label for="cv-10">10進数</label><input type="text" id="cv-10" data-base="10" inputmode="numeric" autocomplete="off" value="2026"></div>
         <div class="field"><label for="cv-2">2進数</label><input type="text" id="cv-2" data-base="2" inputmode="numeric" autocomplete="off"></div>
         <div class="field"><label for="cv-8">8進数</label><input type="text" id="cv-8" data-base="8" inputmode="numeric" autocomplete="off"></div>
         <div class="field"><label for="cv-16">16進数</label><input type="text" id="cv-16" data-base="16" autocomplete="off"></div>
       </div>
-    </div>
-  </section>
+    </section>
+  </div>
 </div>
 
 <script>
@@ -232,7 +262,7 @@ tr.warn td { background: var(--warn-soft); }
     });
     store.set("railcalc-tab", id);
   }
-  tabs.forEach(([t]) => $(t).addEventListener("click", () => showTab(t)));
+  tabs.forEach(([t]) => $(t).addEventListener("click", () => { showTab(t); if (t === "tab-accel") calc(); }));
   const saved = location.hash === "#bin" ? "tab-bin" : store.get("railcalc-tab");
   if (saved && $(saved)) showTab(saved);
 
@@ -264,29 +294,32 @@ tr.warn td { background: var(--warn-soft); }
   // 基準値 [G] → m/s²（空欄は null、読めない値は NaN）
   function parseTh(id) {
     const el = $(id);
-    let t = el.value.trim().replace(/[０-９．]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xFEE0)).replace(/[－ー−]/g, "-");
+    const t = el.value.trim().replace(/[０-９．]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xFEE0)).replace(/[－ー−]/g, "-");
     if (t === "") { el.classList.remove("bad"); return null; }
     const ok = /^[-+]?\d*\.?\d+$/.test(t);
     el.classList.toggle("bad", !ok);
     if (!ok) return NaN;
     return Number(t) * G0;
   }
-
   // "10050" / "10,050" / "10050.5" / "10k050" / "10K050m" → m
   function parseKm(s) {
     s = s.trim().replace(/[，,\s]/g, "").replace(/[０-９．]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xFEE0));
     if (s === "") return null;
-    const m = s.match(/^(\d+)\s*[kK]\s*(\d{1,3}(?:\.\d+)?)\s*m?$/);
+    const m = s.match(/^(\d+)[kK](\d{1,3}(?:\.\d+)?)m?$/);
     if (m) return Number(m[1]) * 1000 + Number(m[2]);
     if (/^\d+(\.\d+)?$/.test(s)) return Number(s);
     return NaN;
   }
+  // 0.1 km/h 単位の整数 → km/h
   function parseNum(s) {
-    s = s.trim().replace(/[０-９．]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xFEE0));
+    s = s.trim().replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xFEE0));
     if (s === "") return null;
     return /^\d+$/.test(s) ? Number(s) / 10 : NaN;
   }
   const fmt = (x, d) => (Object.is(Math.round(x * 10 ** d) / 10 ** d, -0) ? 0 : x).toFixed(d);
+  const kindOf = (a) => (Math.abs(a) < 0.0005 ? "even" : a > 0 ? "acc" : "dec");
+  const LABEL = { acc: "加速", dec: "減速", even: "等速" };
+  const COLOR = { acc: "var(--accel)", dec: "var(--decel)", even: "var(--even)" };
 
   function calc() {
     const pts = [], errs = [];
@@ -301,124 +334,153 @@ tr.warn td { background: var(--warn-soft); }
       pts.push({ no: i + 1, km: k, v: v });
     }
     if (pts.length && pts[0].no !== 1 && $("km-0").value.trim() === "") errs.push("地点1のキロ程が空です（地点1を飛ばして計算しています）");
-    const out = $("out-body"); out.innerHTML = "";
+
     const secs = [];
     for (let i = 1; i < pts.length; i++) {
       const p = pts[i - 1], q = pts[i];
       const d = Math.abs(q.km - p.km);
       if (d === 0) { errs.push(`地点${p.no}と地点${q.no}のキロ程が同じなので計算できません`); continue; }
-      const dir = Math.sign(q.km - p.km);
-      if (secs.length && dir !== Math.sign(secs[0].q.km - secs[0].p.km)) errs.push(`地点${p.no}→${q.no}でキロ程の増減の向きが逆になっています`);
+      if (secs.length && Math.sign(q.km - p.km) !== Math.sign(secs[0].q.km - secs[0].p.km)) errs.push(`地点${p.no}→${q.no}でキロ程の増減の向きが逆になっています`);
       if (p.v === 0 && q.v === 0) errs.push(`地点${p.no}→${q.no}は速度が両方0なので、走行できません`);
       const v1 = p.v / 3.6, v2 = q.v / 3.6;
       const a = (v2 * v2 - v1 * v1) / (2 * d);
       const t = v1 + v2 > 0 ? (2 * d) / (v1 + v2) : null;
-      secs.push({ p, q, d, a, t });
+      secs.push({ p, q, d, a, t, kind: kindOf(a) });
     }
-    let thAcc = parseTh("th-acc");
-    if (thAcc !== null && !Number.isNaN(thAcc)) thAcc = Math.abs(thAcc);
-    let thDec = parseTh("th-dec");
+
+    let thAcc = parseTh("th-acc"), thDec = parseTh("th-dec");
     if (Number.isNaN(thAcc) || Number.isNaN(thDec)) errs.push("基準値の数字が読めません");
-    if (thDec !== null && !Number.isNaN(thDec)) thDec = -Math.abs(thDec);
-    const showTh = (x) => fmt(x / G0, 3) + " G";
+    const okTh = (x) => x !== null && !Number.isNaN(x);
+    if (okTh(thAcc)) thAcc = Math.abs(thAcc);
+    if (okTh(thDec)) thDec = -Math.abs(thDec);
     secs.forEach((s) => {
-      s.warn = (s.a > 0 && thAcc !== null && !Number.isNaN(thAcc) && s.a >= thAcc - 1e-12)
-            || (s.a < 0 && thDec !== null && !Number.isNaN(thDec) && s.a <= thDec + 1e-12);
+      s.warn = (s.a > 0 && okTh(thAcc) && s.a >= thAcc - 1e-12) || (s.a < 0 && okTh(thDec) && s.a <= thDec + 1e-12);
     });
-    secs.forEach((s) => {
-      const kind = Math.abs(s.a) < 0.0005 ? "even" : s.a > 0 ? "acc" : "dec";
-      const label = { acc: "加速", dec: "減速", even: "等速" }[kind];
-      const tr = document.createElement("tr");
-      if (s.warn) tr.className = "warn";
-      tr.id = "sec-" + s.p.no;
-      tr.innerHTML = `<td class="head">区間 ${s.p.no}→${s.q.no}</td>
-        <td class="num" data-label="距離 [m]">${fmt(s.d, 0)}</td>
-        <td class="num" data-label="速度変化 [km/h]">${s.q.v - s.p.v > 0 ? "+" : ""}${fmt(s.q.v - s.p.v, 1)}</td>
-        <td class="num" data-label="加速度 [G]">${fmt(s.a / G0, 3)}</td>
-        <td class="num" data-label="所要時間 [s]">${s.t === null ? "—" : fmt(s.t, 1)}</td>
-        <td data-label="状態"><span><span class="pill ${kind}">${label}</span>${s.warn ? '<span class="pill warn">注意</span>' : ""}</span></td>`;
-      out.appendChild(tr);
-    });
-    if (!secs.length) out.innerHTML = `<tr><td class="empty" colspan="6" style="text-align:center;color:var(--muted)">2地点以上入れると計算します</td></tr>`;
 
     const err = $("accel-err");
     err.hidden = !errs.length; err.textContent = errs.join("／");
 
-    // 注意
-    const warned = secs.filter((s) => s.warn);
+    renderSections(secs, okTh(thAcc) ? thAcc : null, okTh(thDec) ? thDec : null);
+    renderMarks(secs);
+    renderBanner(secs, thAcc, thDec);
+    renderSummary(secs);
+    drawChart(pts, secs);
+  }
+
+  function renderSections(secs, thAcc, thDec) {
+    const list = $("sec-list");
+    if (!secs.length) { list.innerHTML = `<li class="empty">地点を2つ以上入れると、区間ごとの加速度がここに出ます。</li>`; return; }
+    // G バーの目盛り：最大値と基準値のうち大きいほうを端にする
+    const span = Math.max(...secs.map((s) => Math.abs(s.a)), thAcc || 0, Math.abs(thDec || 0), 1e-9) * 1.15;
+    const pos = (a) => 50 + (a / span) * 50; // % from left
+    list.innerHTML = secs.map((s) => {
+      const g = s.a / G0;
+      const left = Math.min(pos(0), pos(s.a)), width = Math.abs(pos(s.a) - pos(0));
+      const ticks = [thAcc, thDec].filter((x) => x !== null).map((x) => `<span class="tick" style="left:calc(${pos(x)}% - 1px)"></span>`).join("");
+      const dv = s.q.v - s.p.v;
+      return `<li class="sec${s.warn ? " warn" : ""}" id="sec-${s.p.no}">
+        <div class="sec-name">${s.p.no}→${s.q.no}<small><span class="${s.kind}">${LABEL[s.kind]}</span>${s.warn ? '<span class="flag">基準超え</span>' : ""}</small></div>
+        <div class="sec-g"><b>${fmt(g, 3)}<small>G</small></b>
+          <div class="gbar" aria-hidden="true"><span class="zero"></span><span class="fill" style="left:${left}%;width:${width}%;background:${COLOR[s.kind]}"></span>${ticks}</div></div>
+        <dl class="sec-vals">
+          <div><dt>距離 [m]</dt><dd>${fmt(s.d, 0)}</dd></div>
+          <div><dt>速度差 [km/h]</dt><dd>${dv > 0 ? "+" : ""}${fmt(dv, 1)}</dd></div>
+          <div><dt>所要時間 [s]</dt><dd>${s.t === null ? "—" : fmt(s.t, 1)}</dd></div>
+        </dl></li>`;
+    }).join("");
+  }
+
+  function renderMarks(secs) {
     for (let i = 1; i <= N; i++) {
-      const s = warned.find((w) => w.p.no === i);
+      const s = secs.find((w) => w.warn && w.p.no === i);
       $("no-" + i).innerHTML = s
-        ? `<button class="mark" data-sec="${i}" aria-label="地点${i}からの区間が基準値超え。詳細へ移動">${i}<span aria-hidden="true">!</span></button>`
+        ? `<button class="mark" data-sec="${i}" aria-label="地点${i}からの区間が基準値超え。結果へ移動">${i}<span aria-hidden="true">!</span></button>`
         : String(i);
     }
+  }
+
+  function renderBanner(secs, thAcc, thDec) {
+    const warned = secs.filter((s) => s.warn);
     const banner = $("warn-banner");
     banner.hidden = !warned.length;
-    if (warned.length) {
-      const parts = [];
-      if (warned.some((s) => s.a > 0)) parts.push(`加速度 ${showTh(thAcc)} 以上`);
-      if (warned.some((s) => s.a < 0)) parts.push(`減速度 ${showTh(thDec)} 以下`);
-      banner.textContent = `注意：基準値を超えた区間があります（${parts.join("、")}）… 区間 ${warned.map((s) => s.p.no + "→" + s.q.no).join("、")}`;
-    }
+    if (!warned.length) return;
+    const parts = [];
+    if (warned.some((s) => s.a > 0)) parts.push(`加速度 ${fmt(thAcc / G0, 3)} G 以上`);
+    if (warned.some((s) => s.a < 0)) parts.push(`減速度 ${fmt(thDec / G0, 3)} G 以下`);
+    banner.textContent = `基準値を超えた区間があります（${parts.join("、")}）：${warned.map((s) => s.p.no + "→" + s.q.no).join("、")}`;
+  }
 
-    // summary
+  function renderSummary(secs) {
     const sum = $("summary");
-    if (secs.length) {
-      const maxA = secs.reduce((m, s) => (s.a > m.a ? s : m));
-      const minA = secs.reduce((m, s) => (s.a < m.a ? s : m));
-      const stat = (sec, ok, name, cls) => ok
-        ? `<div class="stat ${cls}"><b>${fmt(sec.a / G0, 3)}</b><span>${name} G（区間${sec.p.no}→${sec.q.no}）</span></div>`
-        : `<div class="stat ${cls}"><b>—</b><span>${name} G（該当区間なし）</span></div>`;
-      const dist = secs.reduce((x, s) => x + s.d, 0);
-      const tt = secs.every((s) => s.t !== null) ? secs.reduce((x, s) => x + s.t, 0) : null;
-      sum.innerHTML = `
-        ${stat(maxA, maxA.a >= 0.0005, "最大加速度", "acc")}
-        ${stat(minA, minA.a <= -0.0005, "最大減速度", "dec")}
-        <div class="stat"><b>${fmt(dist, 0)} m</b><span>合計距離</span></div>
-        <div class="stat"><b>${tt === null ? "—" : fmt(tt, 1) + " s"}</b><span>合計所要時間</span></div>`;
-    } else sum.innerHTML = "";
-
-    drawChart(pts, secs);
+    if (!secs.length) { sum.innerHTML = ""; return; }
+    const maxA = secs.reduce((m, s) => (s.a > m.a ? s : m));
+    const minA = secs.reduce((m, s) => (s.a < m.a ? s : m));
+    const dist = secs.reduce((x, s) => x + s.d, 0);
+    const tt = secs.every((s) => s.t !== null) ? secs.reduce((x, s) => x + s.t, 0) : null;
+    const item = (cls, name, val, note) => `<div class="${cls}"><dt>${name}</dt><dd class="num">${val}<small>${note}</small></dd></div>`;
+    sum.innerHTML =
+      item("acc", "最大加速度", maxA.a >= 0.0005 ? fmt(maxA.a / G0, 3) : "—", maxA.a >= 0.0005 ? `G（${maxA.p.no}→${maxA.q.no}）` : "G") +
+      item("dec", "最大減速度", minA.a <= -0.0005 ? fmt(minA.a / G0, 3) : "—", minA.a <= -0.0005 ? `G（${minA.p.no}→${minA.q.no}）` : "G") +
+      item("", "合計距離", fmt(dist, 0), "m") +
+      item("", "合計所要時間", tt === null ? "—" : fmt(tt, 1), "s");
   }
 
   function drawChart(pts, secs) {
     const svg = $("chart");
-    const W = 640, H = 230, L = 46, R = 14, T = 14, B = 34;
-    if (pts.length < 2) { svg.innerHTML = `<text x="${W / 2}" y="${H / 2}" text-anchor="middle">グラフは2地点以上で表示されます</text>`; return; }
-    let kMin = Math.min(...pts.map((p) => p.km)), kMax = Math.max(...pts.map((p) => p.km));
-    if (kMax === kMin) kMax = kMin + 100;
-    const vTop = Math.max(20, Math.ceil(Math.max(...pts.map((p) => p.v)) / 20) * 20);
-    const x = (k) => L + ((k - kMin) / (kMax - kMin)) * (W - L - R);
-    const y = (v) => T + (1 - v / vTop) * (H - T - B);
-    let g = "";
+    const W = Math.round(Math.max(300, Math.min(700, svg.parentNode.clientWidth - 16 || 640)));
+    const H = W < 480 ? 220 : 260, L = 40, R = 12, T = 22, B = 26;
+    svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+    const pw = W - L - R, ph = H - T - B;
+    let kMin = 0, kMax = 1000, vTop = 120;
+    if (pts.length >= 2) {
+      kMin = Math.min(...pts.map((p) => p.km)); kMax = Math.max(...pts.map((p) => p.km));
+      if (kMax === kMin) kMax = kMin + 100;
+      vTop = Math.max(20, Math.ceil(Math.max(...pts.map((p) => p.v)) / 20) * 20);
+    }
+    const x = (k) => L + ((k - kMin) / (kMax - kMin)) * pw;
+    const y = (v) => T + (1 - v / vTop) * ph;
+    let g = `<rect x="${L}" y="${T}" width="${pw}" height="${ph}" fill="none" stroke="var(--grid-major)" stroke-width="1.5"/>`;
+    // graph paper: 5 minor squares per major division
     const step = vTop <= 100 ? 20 : vTop <= 200 ? 40 : 60;
-    for (let v = 0; v <= vTop; v += step) {
-      g += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" stroke-width="1"/>`;
-      g += `<text x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${v}</text>`;
+    const minorV = step / 5;
+    for (let v = 0; v <= vTop + 1e-9; v += minorV) {
+      const major = Math.abs(v / step - Math.round(v / step)) < 1e-9;
+      g += `<line x1="${L}" x2="${L + pw}" y1="${y(v)}" y2="${y(v)}" stroke="var(${major ? "--grid-major" : "--grid"})" stroke-width="1"/>`;
+      if (major) g += `<text x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${Math.round(v)}</text>`;
     }
-    const ticks = 5;
-    for (let i = 0; i <= ticks; i++) {
-      const k = kMin + ((kMax - kMin) * i) / ticks;
-      g += `<text x="${x(k)}" y="${H - B + 16}" text-anchor="middle">${Math.round(k)}</text>`;
+    const cols = W < 480 ? 20 : 25;
+    for (let i = 0; i <= cols; i++) {
+      const xx = L + (pw * i) / cols, major = i % 5 === 0, labeled = i % (W < 480 ? 10 : 5) === 0;
+      g += `<line x1="${xx}" x2="${xx}" y1="${T}" y2="${T + ph}" stroke="var(${major ? "--grid-major" : "--grid"})" stroke-width="1"/>`;
+      if (labeled && pts.length >= 2) g += `<text x="${xx}" y="${H - B + 17}" text-anchor="${i === 0 ? "start" : i === cols ? "end" : "middle"}">${Math.round(kMin + ((kMax - kMin) * i) / cols)}</text>`;
     }
-    g += `<text x="${L}" y="${T - 2}" text-anchor="start" style="font-size:10px">km/h</text>`;
-    g += `<text x="${W - R}" y="${H - 4}" text-anchor="end" style="font-size:10px">キロ程 [m]</text>`;
+    g += `<text x="${L}" y="${T - 8}" text-anchor="start">速度 [km/h]</text>`;
+    if (pts.length < 2) {
+      g += `<text x="${L + pw / 2}" y="${T + ph / 2}" text-anchor="middle" style="font-size:13px">2地点以上入れると運転曲線が描かれます</text>`;
+      svg.innerHTML = g; return;
+    }
+    secs.filter((s) => s.warn).forEach((s) => {
+      g += `<line x1="${x(s.p.km)}" y1="${y(s.p.v)}" x2="${x(s.q.km)}" y2="${y(s.q.v)}" stroke="var(--warn-line)" stroke-width="11" stroke-linecap="round" opacity=".55"/>`;
+    });
     secs.forEach((s) => {
-      const c = Math.abs(s.a) < 0.0005 ? "var(--even)" : s.a > 0 ? "var(--accel)" : "var(--decel)";
-      g += `<line x1="${x(s.p.km)}" y1="${y(s.p.v)}" x2="${x(s.q.km)}" y2="${y(s.q.v)}" stroke="${c}" stroke-width="2.5" stroke-linecap="round"/>`;
+      g += `<line x1="${x(s.p.km)}" y1="${y(s.p.v)}" x2="${x(s.q.km)}" y2="${y(s.q.v)}" stroke="${COLOR[s.kind]}" stroke-width="3" stroke-linecap="round"/>`;
     });
     pts.forEach((p) => {
-      g += `<circle cx="${x(p.km)}" cy="${y(p.v)}" r="4" fill="var(--surface)" stroke="var(--fg)" stroke-width="1.5"/>`;
+      const cx = x(p.km), cy = y(p.v);
+      g += `<circle cx="${cx}" cy="${cy}" r="4.5" fill="var(--paper)" stroke="var(--ink)" stroke-width="1.8"/>`;
+      const edgeL = cx < L + 14, edgeR = cx > L + pw - 14;
+      g += `<text x="${edgeL ? cx + 8 : edgeR ? cx - 8 : cx}" y="${cy - 9}" text-anchor="${edgeL ? "start" : edgeR ? "end" : "middle"}" style="fill:var(--ink);font-weight:700">${p.no}</text>`;
     });
     svg.innerHTML = g;
   }
   calc();
+  let lastW = 0;
+  addEventListener("resize", () => { const w = $("chart").parentNode.clientWidth; if (w !== lastW) { lastW = w; calc(); } });
 
   /* ---------- 2進数電卓 ---------- */
   const OPS = [
-    ["add", "+", "足す"], ["sub", "−", "引く"], ["mul", "×", "掛ける"], ["div", "÷", "割る"],
-    ["and", "AND", "かつ"], ["or", "OR", "または"], ["xor", "XOR", "排他"], ["not", "NOT", "反転"],
-    ["shl", "≪", "左シフト"], ["shr", "≫", "右シフト"]
+    ["add", "+", "足す"], ["sub", "−", "引く"], ["mul", "×", "掛ける"], ["div", "÷", "割る"], ["not", "NOT", "反転"],
+    ["and", "AND", "かつ"], ["or", "OR", "または"], ["xor", "XOR", "排他"], ["shl", "≪", "左シフト"], ["shr", "≫", "右シフト"]
   ];
   let op = store.get("railcalc-op") || "add";
   const opsEl = $("ops");
@@ -429,7 +491,7 @@ tr.warn td { background: var(--warn-soft); }
     opsEl.appendChild(b);
   });
 
-  const toHan = (s) => s.replace(/[０-９Ａ-Ｆａ-ｆ]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xFEE0));
+  const toHan = (s) => s.replace(/[０-９Ａ-Ｆａ-ｆ]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xFEE0)).replace(/[－−]/g, "-");
   function parseBin(s) {
     s = toHan(s).replace(/[\s_]/g, "");
     if (s === "") return null;
@@ -500,7 +562,7 @@ tr.warn td { background: var(--warn-soft); }
     ];
     if (rem !== null) rows.push(["余り（2進）", absStr(rem, 2)], ["余り（10進）", rem.toString(10)]);
     out.innerHTML = rows.map(([k, v, main], i) =>
-      `<div class="res-row${main ? " main" : ""}"><span>${k}</span><code id="r-${i}">${v}</code><button class="btn copy" data-i="${i}">コピー</button></div>`
+      `<div class="res-row${main ? " main" : ""}"><span>${k}</span><code id="r-${i}">${v}</code><button class="copy" data-i="${i}">コピー</button></div>`
     ).join("") + `<div class="bits" aria-label="4桁区切り">${group4(bin).split(" ").map((g) => `<span>${g}</span>`).join("")}</div>`;
   }
   $("bin-result").addEventListener("click", (ev) => {
