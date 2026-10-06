@@ -153,8 +153,8 @@ tr.warn td { background: var(--warn-soft); }
       <h2>基準値</h2>
       <p class="note">加速の区間は「加速度基準値以上」、減速の区間は「減速度基準値以下」になったら注意を出します。空欄ならチェックしません。減速度はマイナスで入力（プラスで入れてもマイナスとして扱います）。</p>
       <div class="th-grid">
-        <div class="field"><label for="th-acc">加速度基準値 [G]</label><input type="text" id="th-acc" inputmode="decimal" autocomplete="off" placeholder="なし"></div>
-        <div class="field"><label for="th-dec">減速度基準値 [G]</label><input type="text" id="th-dec" inputmode="decimal" autocomplete="off" value="-0.08" placeholder="なし"></div>
+        <div class="field"><label for="th-acc">加速度基準値 [km/h/s]</label><input type="text" id="th-acc" inputmode="decimal" autocomplete="off" placeholder="なし"></div>
+        <div class="field"><label for="th-dec">減速度基準値 [km/h/s]</label><input type="text" id="th-dec" inputmode="decimal" autocomplete="off" value="-0.08" placeholder="なし"></div>
       </div>
     </div>
 
@@ -167,11 +167,11 @@ tr.warn td { background: var(--warn-soft); }
       </div>
       <div class="scroll">
         <table class="out-table">
-          <thead><tr><th>区間</th><th>距離 [m]</th><th>速度変化 [km/h]</th><th>加速度 [G]</th><th>所要時間 [s]</th><th>状態</th></tr></thead>
+          <thead><tr><th>区間</th><th>距離 [m]</th><th>速度変化 [km/h]</th><th>加速度 [km/h/s]</th><th>所要時間 [s]</th><th>状態</th></tr></thead>
           <tbody id="out-body"></tbody>
         </table>
       </div>
-      <div class="formula">a = (v₂² − v₁²) ÷ (2 × 距離)　　所要時間 t = 2 × 距離 ÷ (v₁ + v₂)<br>※ 区間の中は加速度が一定と仮定。速度は m/s に直して計算（km/h ÷ 3.6）。G = a ÷ 9.80665（1G = 9.80665 m/s²）</div>
+      <div class="formula">a = (v₂² − v₁²) ÷ (2 × 距離)　　所要時間 t = 2 × 距離 ÷ (v₁ + v₂)<br>※ 区間の中は加速度が一定と仮定。速度は m/s に直して計算（km/h ÷ 3.6）。加速度 [km/h/s] = a [m/s²] × 3.6</div>
     </div>
   </section>
 
@@ -238,13 +238,13 @@ tr.warn td { background: var(--warn-soft); }
 
   /* ---------- 加速度計算 ---------- */
   const N = 10;
-  const G0 = 9.80665; // 1G [m/s²]
+  const K = 3.6; // m/s² → km/h/s
   const body = $("in-body");
   for (let i = 0; i < N; i++) {
     const tr = document.createElement("tr");
     tr.innerHTML = `<td id="no-${i + 1}">${i + 1}</td>
       <td><input type="text" id="km-${i}" inputmode="decimal" autocomplete="off" aria-label="地点${i + 1} キロ程"></td>
-      <td><input type="text" id="v-${i}" inputmode="numeric" autocomplete="off" aria-label="地点${i + 1} 速度（0.1 km/h単位）"></td>`;
+      <td><input type="text" id="v-${i}"${i === 0 ? ' value="0"' : ""} inputmode="numeric" autocomplete="off" aria-label="地点${i + 1} 速度（0.1 km/h単位）"></td>`;
     body.appendChild(tr);
   }
   body.addEventListener("input", calc);
@@ -261,7 +261,7 @@ tr.warn td { background: var(--warn-soft); }
     if (v !== null) el.value = v;
     el.addEventListener("input", () => { store.set("railcalc-" + id, el.value); calc(); });
   });
-  // 基準値 [G] → m/s²（空欄は null、読めない値は NaN）
+  // 基準値 [km/h/s] → m/s²（空欄は null、読めない値は NaN）
   function parseTh(id) {
     const el = $(id);
     let t = el.value.trim().replace(/[０-９．]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xFEE0)).replace(/[－ー−]/g, "-");
@@ -269,7 +269,7 @@ tr.warn td { background: var(--warn-soft); }
     const ok = /^[-+]?\d*\.?\d+$/.test(t);
     el.classList.toggle("bad", !ok);
     if (!ok) return NaN;
-    return Number(t) * G0;
+    return Number(t) / K;
   }
 
   // "10050" / "10050.5" / "10k050" / "10K050m" → m
@@ -296,7 +296,7 @@ tr.warn td { background: var(--warn-soft); }
       kEl.classList.toggle("bad", Number.isNaN(k));
       vEl.classList.toggle("bad", Number.isNaN(v));
       if (Number.isNaN(k) || Number.isNaN(v)) { errs.push(`地点${i + 1}の数字が読めません（速度は 0.1 km/h 単位の整数）`); continue; }
-      if (k === null && v === null) continue;
+      if (k === null && (v === null || (i === 0 && v === 0))) continue; // 地点1の初期値0だけの行は未入力扱い
       if (k === null || v === null) { errs.push(`地点${i + 1}はキロ程と速度の両方を入れてください`); continue; }
       pts.push({ no: i + 1, km: k, v: v });
     }
@@ -315,7 +315,7 @@ tr.warn td { background: var(--warn-soft); }
     let thDec = parseTh("th-dec");
     if (Number.isNaN(thAcc) || Number.isNaN(thDec)) errs.push("基準値の数字が読めません");
     if (thDec !== null && !Number.isNaN(thDec)) thDec = -Math.abs(thDec);
-    const showTh = (x) => fmt(x / G0, 3) + " G";
+    const showTh = (x) => fmt(x * K, 3) + " km/h/s";
     secs.forEach((s) => {
       s.warn = (s.a > 0 && thAcc !== null && !Number.isNaN(thAcc) && s.a >= thAcc - 1e-12)
             || (s.a < 0 && thDec !== null && !Number.isNaN(thDec) && s.a <= thDec + 1e-12);
@@ -329,7 +329,7 @@ tr.warn td { background: var(--warn-soft); }
       tr.innerHTML = `<td class="head">区間 ${s.p.no}→${s.q.no}</td>
         <td class="num" data-label="距離 [m]">${fmt(s.d, 0)}</td>
         <td class="num" data-label="速度変化 [km/h]">${s.q.v - s.p.v > 0 ? "+" : ""}${fmt(s.q.v - s.p.v, 1)}</td>
-        <td class="num" data-label="加速度 [G]">${fmt(s.a / G0, 3)}</td>
+        <td class="num" data-label="加速度 [km/h/s]">${fmt(s.a * K, 3)}</td>
         <td class="num" data-label="所要時間 [s]">${s.t === null ? "—" : fmt(s.t, 1)}</td>
         <td data-label="状態"><span><span class="pill ${kind}">${label}</span>${s.warn ? '<span class="pill warn">注意</span>' : ""}</span></td>`;
       out.appendChild(tr);
@@ -364,8 +364,8 @@ tr.warn td { background: var(--warn-soft); }
       const dist = secs.reduce((x, s) => x + s.d, 0);
       const tt = secs.every((s) => s.t !== null) ? secs.reduce((x, s) => x + s.t, 0) : null;
       sum.innerHTML = `
-        <div class="stat acc"><b>${fmt(maxA.a / G0, 3)}</b><span>最大加速度 G（区間${maxA.p.no}→${maxA.q.no}）</span></div>
-        <div class="stat dec"><b>${fmt(minA.a / G0, 3)}</b><span>最大減速度 G（区間${minA.p.no}→${minA.q.no}）</span></div>
+        <div class="stat acc"><b>${fmt(maxA.a * K, 3)}</b><span>最大加速度 km/h/s（区間${maxA.p.no}→${maxA.q.no}）</span></div>
+        <div class="stat dec"><b>${fmt(minA.a * K, 3)}</b><span>最大減速度 km/h/s（区間${minA.p.no}→${minA.q.no}）</span></div>
         <div class="stat"><b>${fmt(dist, 0)} m</b><span>合計距離</span></div>
         <div class="stat"><b>${tt === null ? "—" : fmt(tt, 1) + " s"}</b><span>合計所要時間</span></div>
         <div class="stat${warned.length ? " warn" : ""}"><b>${warned.length}</b><span>基準値を超えた区間</span></div>`;
