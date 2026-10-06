@@ -353,7 +353,7 @@ tr.warn td { background: var(--warn-soft); }
       const parts = [];
       if (warned.some((s) => s.a > 0)) parts.push(`加速度 ${showTh(thAcc)} 以上`);
       if (warned.some((s) => s.a < 0)) parts.push(`減速度 ${showTh(thDec)} 以下`);
-      banner.textContent = `注意：${warned.length}区間が基準値を超えています（${parts.join("、")}）… 区間 ${warned.map((s) => s.p.no + "→" + s.q.no).join("、")}`;
+      banner.textContent = `注意：基準値を超えた区間があります（${parts.join("、")}）… 区間 ${warned.map((s) => s.p.no + "→" + s.q.no).join("、")}`;
     }
 
     // summary
@@ -367,8 +367,7 @@ tr.warn td { background: var(--warn-soft); }
         <div class="stat acc"><b>${fmt(maxA.a / G0, 3)}</b><span>最大加速度 G（区間${maxA.p.no}→${maxA.q.no}）</span></div>
         <div class="stat dec"><b>${fmt(minA.a / G0, 3)}</b><span>最大減速度 G（区間${minA.p.no}→${minA.q.no}）</span></div>
         <div class="stat"><b>${fmt(dist, 0)} m</b><span>合計距離</span></div>
-        <div class="stat"><b>${tt === null ? "—" : fmt(tt, 1) + " s"}</b><span>合計所要時間</span></div>
-        <div class="stat${warned.length ? " warn" : ""}"><b>${warned.length}</b><span>基準値を超えた区間</span></div>`;
+        <div class="stat"><b>${tt === null ? "—" : fmt(tt, 1) + " s"}</b><span>合計所要時間</span></div>`;
     } else sum.innerHTML = "";
 
     drawChart(pts, secs);
